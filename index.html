@@ -132,6 +132,7 @@
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab(this, 'agendaTab')"><i class="fa-solid fa-calendar-check"></i> Agenda di Oggi 🔒</button>
             <button class="tab-btn" onclick="switchTab(this, 'syllabusTab')"><i class="fa-solid fa-book"></i> Syllabus</button>
+            <button class="tab-btn" onclick="switchTab(this, 'errorLogTab')"><i class="fa-solid fa-book-bookmark"></i> Quadernino Errori 📖</button>
             <button class="tab-btn" onclick="switchTab(this, 'timerTab')"><i class="fa-solid fa-stopwatch"></i> Pomodoro</button>
             <button class="tab-btn" onclick="switchTab(this, 'flashcardsTab')"><i class="fa-solid fa-layer-group"></i> Flashcards</button>
             <button class="tab-btn" onclick="switchTab(this, 'simulationsTab')"><i class="fa-solid fa-chart-line"></i> Simulazioni & Calcolo Rischio</button>
@@ -148,9 +149,12 @@
             </div>
 
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                     <h3><i class="fa-solid fa-list-check"></i> Obiettivi Programmati per Oggi</h3>
-                    <span id="agendaProgress" style="font-weight: 700; color: var(--accent);">0/0 Completati</span>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button class="btn btn-secondary btn-sm" onclick="exportAgendaToICS()"><i class="fa-solid fa-calendar-plus"></i> Esporta in Google Calendar (.ics)</button>
+                        <span id="agendaProgress" style="font-weight: 700; color: var(--accent);">0/0 Completati</span>
+                    </div>
                 </div>
                 <div id="todayTaskList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
             </div>
@@ -159,6 +163,33 @@
         <!-- TAB 1: SYLLABUS -->
         <div id="syllabusTab" class="tab-content">
             <div id="syllabusContainer"></div>
+        </div>
+
+        <!-- TAB EXTRA: QUADER NINO DEGLI ERRORI -->
+        <div id="errorLogTab" class="tab-content">
+            <div class="card">
+                <h3><i class="fa-solid fa-circle-plus"></i> Aggiungi un Errore al Quadernino</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Registra i quiz errati svolti su Gemini o sui libri per ripassarli in seguito.</p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted);">Materia e Argomento:</label>
+                        <select id="errorTopicSelect" style="width: 100%; margin-top: 0.25rem;"></select>
+                    </div>
+                    <textarea id="errorQuestionInput" rows="2" placeholder="Testo della domanda o del concetto sbagliato..."></textarea>
+                    <textarea id="errorExplanationInput" rows="2" placeholder="Spiegazione / Perché avevi sbagliato? (es. confuso il trasporto attivo con la diffusione facilitata)"></textarea>
+                    <button class="btn" onclick="addErrorItem()"><i class="fa-solid fa-floppy-disk"></i> Salva Errore</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h3><i class="fa-solid fa-book-open"></i> I Tuoi Errori Registrati</h3>
+                    <button class="btn btn-secondary btn-sm" style="border-color: var(--accent); color: var(--accent);" onclick="copyGeminiErrorPrompt()">
+                        <i class="fa-solid fa-robot"></i> Copia Prompt Quiz per Gemini
+                    </button>
+                </div>
+                <div id="errorLogList" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+            </div>
         </div>
 
         <!-- TAB 2: TIMER POMODORO -->
@@ -473,7 +504,7 @@
                         { id: "chem_5_2", text: "Stereochimica: diastereoisomeri, enantiomeri, epimeri, miscele racemiche e convenzione Fischer/RS" },
                         { id: "chem_5_3", text: "Intermedi di reazione: rottura omolitica/eterolitica, carbocationi, carboanioni, nucleofili ed elettrofili" },
                         { id: "chem_5_4", text: "Alcani, cicloalcani ed alcheni: addizione elettrofila e dieni coniugati" },
-                        { id: "chem_5_5", text: "Composti aromatici: benzene, pirimidine, purine, regola di Hückel e tossicità" }
+                        { id: "chem_5_5", text: "Composti aromatici: benzene, pirimidine, purine, regla di Hückel e tossicità" }
                     ]
                 },
                 {
@@ -589,6 +620,7 @@
             studyHours: { "Biologia": 0, "Chimica": 0, "Fisica": 0 },
             simulations: [],
             customFlashcards: [],
+            errorLog: [],
             quickNotes: [],
             collapsedUnits: {},
             streak: 0,
@@ -611,6 +643,8 @@
             renderSyllabus();
             populateFlashcardTopicSelectors();
             populateNoteTopicSelector();
+            populateErrorTopicSelector();
+            renderErrorLog();
             updateDashboard();
             updateTimerDisplay();
             updateStudyHoursDisplay();
@@ -636,6 +670,7 @@
             if (!appState.studyHours) appState.studyHours = { "Biologia": 0, "Chimica": 0, "Fisica": 0 };
             if (!appState.todayPlannedTopicIds) appState.todayPlannedTopicIds = [];
             if (!appState.todayCompletedTopicIds) appState.todayCompletedTopicIds = [];
+            if (!appState.errorLog) appState.errorLog = [];
             if (!appState.quickNotes) appState.quickNotes = [];
         }
 
@@ -658,6 +693,7 @@
                     applyUserProfile();
                     renderAgenda();
                     renderSyllabus();
+                    renderErrorLog();
                     updateDashboard();
                     updateTimerDisplay();
                     updateStudyHoursDisplay();
@@ -803,6 +839,44 @@
             }
         }
 
+        function exportAgendaToICS() {
+            if (!appState.todayPlannedTopicIds || appState.todayPlannedTopicIds.length === 0) {
+                alert("Nessun argomento programmato in Agenda per oggi!");
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toISOString().replace(/-|:|\.\d\d\d/g, "").substring(0, 8);
+
+            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MedStudio Pro//IT\n";
+
+            appState.todayPlannedTopicIds.forEach((id, index) => {
+                const td = appState.topicsData[id] || { text: "Studio", subject: "Generale" };
+                const startHour = 9 + (index * 2);
+                const endHour = startHour + 1;
+
+                const startFormat = `${dateStr}T${startHour.toString().padStart(2, '0')}0000`;
+                const endFormat = `${dateStr}T${endHour.toString().padStart(2, '0')}0000`;
+
+                icsContent += "BEGIN:VEVENT\n";
+                icsContent += `SUMMARY:[MedStudio] ${td.subject}: ${td.text}\n`;
+                icsContent += `DESCRIPTION:Sessione di studio per il semestre filtro - ${td.text}\n`;
+                icsContent += `DTSTART:${startFormat}\n`;
+                icsContent += `DTEND:${endFormat}\n`;
+                icsContent += "END:VEVENT\n";
+            });
+
+            icsContent += "END:VCALENDAR";
+
+            const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.setAttribute("download", `Piano_Studi_${dateStr}.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         function addToAgenda(topicId) {
             if (isLockActive()) { 
                 alert("L'Agenda è bloccata per oggi perché sono passate le 8:00 AM!\n\nPremi il pulsante 'Sblocca Modifiche' in alto nell'Agenda per aggiungere altri argomenti."); 
@@ -933,6 +1007,108 @@
                 renderSyllabus();
                 renderAgenda();
             }
+        }
+
+        function populateErrorTopicSelector() {
+            const select = document.getElementById("errorTopicSelect");
+            if (!select) return;
+            select.innerHTML = "";
+
+            for (let sub in initialSyllabus) {
+                let group = document.createElement("optgroup");
+                group.label = sub;
+                initialSyllabus[sub].forEach(u => {
+                    u.topics.forEach(tObj => {
+                        let opt = document.createElement("option");
+                        opt.value = tObj.id;
+                        opt.innerText = tObj.text;
+                        group.appendChild(opt);
+                    });
+                });
+                select.appendChild(group);
+            }
+        }
+
+        function addErrorItem() {
+            const topicSelect = document.getElementById("errorTopicSelect");
+            const questionInp = document.getElementById("errorQuestionInput");
+            const expInp = document.getElementById("errorExplanationInput");
+
+            if (!topicSelect || !questionInp || !questionInp.value.trim()) {
+                alert("Inserisci il testo dell'errore!");
+                return;
+            }
+
+            const topicId = topicSelect.value;
+            const question = questionInp.value.trim();
+            const explanation = expInp ? expInp.value.trim() : "";
+            const td = appState.topicsData[topicId] || { text: "Generale", subject: "Generale" };
+
+            if (!appState.errorLog) appState.errorLog = [];
+
+            appState.errorLog.unshift({
+                id: 'err_' + Date.now(),
+                date: new Date().toLocaleDateString('it-IT'),
+                topicId: topicId,
+                subject: td.subject,
+                topicText: td.text,
+                question: question,
+                explanation: explanation
+            });
+
+            saveState();
+            questionInp.value = "";
+            if (expInp) expInp.value = "";
+            renderErrorLog();
+        }
+
+        function renderErrorLog() {
+            const container = document.getElementById("errorLogList");
+            if (!container) return;
+
+            if (!appState.errorLog || appState.errorLog.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nessun errore salvato nel quadernino. Ottimo lavoro!</p>`;
+                return;
+            }
+
+            container.innerHTML = appState.errorLog.map(err => `
+                <div style="background-color: var(--bg-card); padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border); border-left: 4px solid var(--danger);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[${err.subject}] ${err.topicText}</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">${err.date}</span>
+                            <button class="btn btn-secondary btn-sm" onclick="removeErrorItem('${err.id}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem;">❓ ${err.question}</div>
+                    ${err.explanation ? `<div style="font-size: 0.85rem; color: var(--text-muted); background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; border: 1px dashed var(--border);">💡 <b>Nota:</b> ${err.explanation}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function removeErrorItem(errId) {
+            appState.errorLog = appState.errorLog.filter(e => e.id !== errId);
+            saveState();
+            renderErrorLog();
+        }
+
+        function copyGeminiErrorPrompt() {
+            if (!appState.errorLog || appState.errorLog.length === 0) {
+                alert("Non hai ancora salvato errori nel quadernino!");
+                return;
+            }
+
+            let promptText = "Sono uno studente di Medicina che prepara il semestre filtro. Ecco una lista di domande/concetti che ho sbagliato di recente:\n\n";
+            appState.errorLog.slice(0, 10).forEach((err, idx) => {
+                promptText += `${idx + 1}. [${err.subject} - ${err.topicText}]: ${err.question}\n`;
+            });
+            promptText += "\nGenerami un quiz a risposta multipla (5 opzioni per domanda) di 10 quesiti focalizzati esattamente su questi argomenti errati, per aiutarmi a recuperarli. Includi le soluzioni dettagliate alla fine.";
+
+            navigator.clipboard.writeText(promptText).then(() => {
+                alert("Prompt copiato negli appunti! Ora incollalo direttamente su Gemini per generare il tuo test di recupero.");
+            }).catch(() => {
+                alert("Impossibile copiare il prompt negli appunti.");
+            });
         }
 
         function populateFlashcardTopicSelectors() {
