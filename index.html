@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedStudio Pro - Preparazione Medicina</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SDK Firebase per Sincronizzazione Cloud -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root[data-theme="dark"] {
+            --bg-primary: #0f172a; --bg-secondary: #1e293b; --bg-card: #334155;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #ff2986;
+            --border: #475569; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+            --status-todo-bg: rgba(148, 163, 184, 0.1);
+            --status-review-bg: rgba(245, 158, 11, 0.12);
+            --status-done-bg: rgba(34, 197, 94, 0.12);
+        }
+        :root[data-theme="light"] {
+            --bg-primary: #f8fafc; --bg-secondary: #ffffff; --bg-card: #f1f5f9;
+            --text-main: #0f172a; --text-muted: #64748b; --accent: #ff2986;
+            --border: #cbd5e1; --success: #16a34a; --warning: #d97706; --danger: #dc2626;
+            --status-todo-bg: #f1f5f9;
+            --status-review-bg: #fffbeb;
+            --status-done-bg: #f0fdf4;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); line-height: 1.5; padding-bottom: 70px; }
+        header { background-color: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 1.4rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 0.5rem; }
+        .header-actions { display: flex; gap: 0.75rem; align-items: center; }
+        .btn { background-color: var(--accent); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px; }
+        .welcome-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 1rem; }
+        .welcome-card { background-color: var(--bg-secondary); border: 2px solid var(--border); border-radius: 16px; padding: 2rem; max-width: 480px; width: 100%; text-align: center; }
+        .user-selector { display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0; }
+        .user-option-btn { padding: 1rem; border-radius: 12px; border: none; color: white; font-weight: 700; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+        .container { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+        .nav-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem; }
+        .tab-btn { background: none; border: none; color: var(--text-muted); padding: 0.75rem 1.25rem; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0; white-space: nowrap; }
+        .tab-btn.active { color: var(--accent); border-bottom: 3px solid var(--accent); background-color: var(--bg-secondary); }
+        .card { background-color: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .subject-title { font-size: 1.3rem; margin: 1.5rem 0 1rem 0; color: var(--accent); border-left: 4px solid var(--accent); padding-left: 0.5rem; }
+        .unit-header { font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background-color: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); user-select: none; }
+        .topic-list { margin-top: 0.5rem; padding-left: 0.25rem; }
+        .topic-list.collapsed { display: none; }
+        
+        .topic-item { border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1.1rem; margin-bottom: 0.6rem; display: flex; flex-direction: column; gap: 0.75rem; background-color: var(--status-todo-bg); transition: all 0.2s ease; }
+        @media (min-width: 640px) { .topic-item { flex-direction: row; align-items: center; justify-content: space-between; } }
+        
+        .topic-item.status-todo { border-left: 4px solid var(--text-muted); }
+        .topic-item.status-review { background-color: var(--status-review-bg); border-color: var(--warning); border-left: 5px solid var(--warning); }
+        .topic-item.status-done { background-color: var(--status-done-bg); border-color: var(--success); border-left: 5px solid var(--success); opacity: 0.85; }
+        .topic-item.status-done .topic-text { text-decoration: line-through; color: var(--text-muted); }
+        
+        .topic-info { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; }
+        .topic-meta { font-size: 0.75rem; color: var(--warning); font-weight: 600; display: flex; align-items: center; gap: 0.3rem; }
+        .topic-controls { display: flex; align-items: center; gap: 0.6rem; }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .metric-card { text-align: center; }
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+        .metric-label { font-size: 0.85rem; color: var(--text-muted); }
+        .timer-display { font-size: 3.5rem; font-weight: 700; text-align: center; margin: 0.5rem 0; color: var(--accent); }
+        .timer-controls { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+        .flashcard-box { perspective: 1000px; height: 220px; cursor: pointer; margin: 1rem 0; }
+        .flashcard-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 12px; }
+        .flashcard-box.flipped .flashcard-inner { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; border: 1px solid var(--border); padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: var(--bg-card); }
+        .flashcard-back { transform: rotateY(180deg); background-color: var(--bg-secondary); }
+
+        .lock-banner { padding: 0.75rem 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; font-weight: 600; font-size: 0.9rem; }
+        .lock-active { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+        .lock-inactive { background-color: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: #86efac; }
+        
+        select, input[type="text"], input[type="number"], textarea { background-color: var(--bg-primary); color: var(--text-main); border: 1px solid var(--border); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div id="welcomeOverlay" class="welcome-overlay" style="display: none;">
+        <div class="welcome-card">
+            <h2>👋 Benvenuta in MedStudio!</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Seleziona il tuo profilo:</p>
+            <div class="user-selector">
+                <button class="user-option-btn" style="background-color: #ff2986;" onclick="selectUserProfile('SILVIA', '#ff2986', 'ok sei SILVIA prinCESS 👑')">
+                    <span>🌸 SILVIA</span> <i class="fa-solid fa-crown"></i>
+                </button>
+                <button class="user-option-btn" style="background-color: #1e98d9;" onclick="selectUserProfile('GIULIA', '#1e98d9', 'ok GIULIA ma stai calma 🧘‍♀️')">
+                    <span>💙 GIULIA</span> <i class="fa-solid fa-bolt"></i>
+                </button>
+                <button class="user-option-btn" style="background-color: #3cc2a7;" onclick="selectUserProfile('ERIKA', '#3cc2a7', 'ok sei ERIKA programmatrice eccellente 💻')">
+                    <span>🌿 ERIKA</span> <i class="fa-solid fa-code"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="logo"><i class="fa-solid fa-stethoscope"></i> <span>MedStudio Pro</span></div>
+        <div class="header-actions">
+            <button class="btn btn-secondary btn-sm" id="cloudBtn" onclick="loginWithGoogle()"><i class="fa-solid fa-cloud"></i> Accedi Cloud</button>
+            <span id="userBadge" style="font-weight: 700; font-size: 0.85rem; padding: 0.3rem 0.6rem; border-radius: 6px; background-color: var(--bg-card); cursor: pointer;" onclick="showWelcomeModal()">--</span>
+            <button class="btn btn-secondary" onclick="exportData()"><i class="fa-solid fa-download"></i></button>
+            <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()"><i class="fa-solid fa-upload"></i></button>
+            <input type="file" id="importFile" style="display:none;" onchange="importData(event)">
+            <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn"><i class="fa-solid fa-moon"></i></button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card" style="border-left: 5px solid var(--accent);">
+            <h2 id="welcomeGreeting">Ok, iniziamo a studiare!</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Organizza il tuo percorso per il semestre filtro.</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card metric-card"><div class="metric-value" id="examCountdown">--</div><div class="metric-label">Giorni all'Esame (10 Dic 2026)</div></div>
+            <div class="card metric-card"><div class="metric-value" id="dailyGoal">--</div><div class="metric-label">Argomenti/Giorno Consigliati</div></div>
+            <div class="card metric-card"><div class="metric-value" id="completionRate">0%</div><div class="metric-label">Avanzamento Syllabus</div></div>
+            <div class="card metric-card"><div class="metric-value" id="studyStreak">0 🔥</div><div class="metric-label">Giorni Consecutivi (Streak)</div></div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab(this, 'agendaTab')"><i class="fa-solid fa-calendar-check"></i> Agenda di Oggi 🔒</button>
+            <button class="tab-btn" onclick="switchTab(this, 'syllabusTab')"><i class="fa-solid fa-book"></i> Syllabus</button>
+            <button class="tab-btn" onclick="switchTab(this, 'timerTab')"><i class="fa-solid fa-stopwatch"></i> Pomodoro</button>
+            <button class="tab-btn" onclick="switchTab(this, 'flashcardsTab')"><i class="fa-solid fa-layer-group"></i> Flashcards</button>
+            <button class="tab-btn" onclick="switchTab(this, 'simulationsTab')"><i class="fa-solid fa-chart-line"></i> Simulazioni & Calcolo Rischio</button>
+            <button class="tab-btn" onclick="switchTab(this, 'notesTab')"><i class="fa-solid fa-bolt"></i> Schemi Lampo</button>
+        </div>
+
+        <!-- TAB 0: AGENDA DI OGGI -->
+        <div id="agendaTab" class="tab-content active">
+            <div id="lockStatusBanner" class="lock-banner lock-inactive"></div>
+
+            <div class="card" style="border-color: var(--warning); background-color: var(--status-review-bg);">
+                <h3 style="color: var(--warning);"><i class="fa-solid fa-clock-rotate-left"></i> Consigliati per il Ripasso Oggi (Spaced Repetition)</h3>
+                <div id="spacedRepetitionList" style="margin-top: 0.75rem;"></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3><i class="fa-solid fa-list-check"></i> Obiettivi Programmati per Oggi</h3>
+                    <span id="agendaProgress" style="font-weight: 700; color: var(--accent);">0/0 Completati</span>
+                </div>
+                <div id="todayTaskList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 1: SYLLABUS -->
+        <div id="syllabusTab" class="tab-content">
+            <div id="syllabusContainer"></div>
+        </div>
+
+        <!-- TAB 2: TIMER POMODORO -->
+        <div id="timerTab" class="tab-content">
+            <div class="card" style="max-width: 500px; margin: 0 auto;">
+                <h3 style="text-align: center;"><i class="fa-solid fa-brain"></i> Timer Pomodoro Focus</h3>
+                <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; align-items: center;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Durata:</label>
+                    <select id="timerPreset" onchange="setTimerPreset(this.value)">
+                        <option value="15">15 min</option><option value="25" selected>25 min</option><option value="45">45 min</option><option value="60">60 min</option>
+                    </select>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">oppure:</span>
+                    <input type="number" id="customMinutes" placeholder="min" style="width: 70px;" onchange="setCustomTimer(this.value)">
+                </div>
+                <div class="timer-display" id="timerDisplay">25:00</div>
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Materia della Sessione:</label>
+                    <select id="timerSubjectSelect" style="width: 100%; margin-top: 0.25rem;">
+                        <option value="Biologia">Biologia</option><option value="Chimica">Chimica</option><option value="Fisica">Fisica</option>
+                    </select>
+                </div>
+                <div class="timer-controls">
+                    <button class="btn" id="startTimerBtn" onclick="toggleTimer()"><i class="fa-solid fa-play"></i> Avvia</button>
+                    <button class="btn btn-secondary" onclick="resetTimer()"><i class="fa-solid fa-rotate-right"></i> Reset</button>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 1.25rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="addManualHours(0.5)">+0.5h Manuali</button>
+                    <button class="btn btn-secondary btn-sm" onclick="addManualHours(1.0)">+1.0h Manuali</button>
+                    <button class="btn btn-secondary btn-sm" style="border-color: var(--danger); color: var(--danger);" onclick="addManualHours(-0.5)">-0.5h Correggi</button>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 1.5rem;">
+                <h3><i class="fa-solid fa-chart-pie"></i> Ore Effettive Accumulate per Materia</h3>
+                <div style="display: flex; justify-content: space-around; margin-top: 1rem; text-align: center;">
+                    <div><h4>Biologia</h4><p id="timeBio" class="metric-value">0.0h</p></div>
+                    <div><h4>Chimica</h4><p id="timeChem" class="metric-value">0.0h</p></div>
+                    <div><h4>Fisica</h4><p id="timePhys" class="metric-value">0.0h</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: FLASHCARDS -->
+        <div id="flashcardsTab" class="tab-content">
+            <div class="card" style="max-width: 650px; margin: 0 auto 1.5rem auto;">
+                <h3><i class="fa-solid fa-plus-circle"></i> Crea Nuova Flashcard</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-muted);">Seleziona l'Argomento:</label>
+                        <select id="fcTopicSelect" style="width: 100%; margin-top: 0.25rem;"></select>
+                    </div>
+                    <input type="text" id="fcFrontInput" placeholder="Domanda / Concetto (Fronte)">
+                    <input type="text" id="fcBackInput" placeholder="Risposta / Spiegazione (Retro)">
+                    <button class="btn" onclick="addCustomFlashcard()"><i class="fa-solid fa-floppy-disk"></i> Salva Flashcard</button>
+                </div>
+            </div>
+            <div class="card" style="max-width: 650px; margin: 0 auto; text-align: center;">
+                <h3><i class="fa-solid fa-shuffle"></i> Flashcard Active Recall</h3>
+                <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted);">Filtra per:</label>
+                        <select id="fcSourceSelect" onchange="toggleFcTopicFilter()">
+                            <option value="all">Tutti gli Argomenti</option>
+                            <option value="custom">Solo Carte Personalizzate</option>
+                            <option value="specific_topic">Argomento Specifico</option>
+                        </select>
+                    </div>
+                    <div id="specificTopicFilterContainer" style="display: none; width: 100%; max-width: 400px;">
+                        <select id="fcSpecificTopicSelect" style="width: 100%;"></select>
+                    </div>
+                </div>
+                <div class="flashcard-box" id="flashcardBox" onclick="flipCard()">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <span id="fcSubject" class="metric-label" style="text-transform: uppercase;">ARGOMENTO</span>
+                            <h3 id="fcTopicTitle" style="margin-top: 0.5rem;">Clicca per estrarre una carta</h3>
+                        </div>
+                        <div class="flashcard-back"><p id="fcNotes">Spiegazione della carta.</p></div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 0.75rem;">
+                    <button class="btn" onclick="drawRandomFlashcard()"><i class="fa-solid fa-arrows-rotate"></i> Estrai Nuova Flashcard</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: SIMULAZIONI & CALCOLO RISCHIO -->
+        <div id="simulationsTab" class="tab-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+                <div class="card">
+                    <h3><i class="fa-solid fa-plus"></i> Registra Simulazione</h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                        <div><label style="font-size: 0.8rem;">Corrette (+1.5):</label><input type="number" id="simCorrect" value="0" min="0" style="width: 100%;"></div>
+                        <div><label style="font-size: 0.8rem;">Errate (-0.4):</label><input type="number" id="simWrong" value="0" min="0" style="width: 100%;"></div>
+                        <div><label style="font-size: 0.8rem;">Omesse (0.0):</label><input type="number" id="simOmitted" value="0" min="0" style="width: 100%;"></div>
+                        <button class="btn" style="width: 100%;" onclick="addSimulation()"><i class="fa-solid fa-floppy-disk"></i> Salva Risultato</button>
+                    </div>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--warning);">
+                    <h3><i class="fa-solid fa-calculator"></i> Calcolatore Rischio Quiz</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Inserisci quante opzioni sei in grado di escludere con certezza su una domanda per calcolare la convenienza statistica:</p>
+                    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <label style="font-size: 0.85rem;">Opzioni escluse con certezza (su 5 totali):</label>
+                        <select id="riskOptionsSelect" onchange="calculateQuizRisk()" style="width: 100%;">
+                            <option value="0">0 opzioni escluse (Tiro a caso totale)</option>
+                            <option value="1">1 opzione esclusa (Scegli tra 4)</option>
+                            <option value="2">2 opzioni escluse (Scegli tra 3)</option>
+                            <option value="3">3 opzioni escluse (Dubbio 50/50 tra 2)</option>
+                        </select>
+                        <div id="riskResultBox" style="padding: 0.75rem; border-radius: 8px; background-color: var(--bg-primary); border: 1px solid var(--border); font-size: 0.85rem;">
+                            Seleziona le opzioni escluse per il calcolo.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 1.25rem;">
+                <h3><i class="fa-solid fa-list-check"></i> Storico Simulazioni</h3>
+                <div id="simulationsHistory" style="margin-top: 1rem;"><p style="color: var(--text-muted); font-size: 0.9rem;">Nessuna simulazione ancora registrata.</p></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: SCHEMI LAMPO -->
+        <div id="notesTab" class="tab-content">
+            <div class="card">
+                <h3><i class="fa-solid fa-bolt"></i> Ultra-Synthesizer: Crea Mappa Concettuale Rapida</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-muted);">Argomento:</label>
+                    <select id="noteTopicSelect" style="width: 100%;"></select>
+                    <textarea id="noteTextInput" rows="4" placeholder="Incolla le tue note o concetti qui..."></textarea>
+                    <button class="btn" onclick="generateQuickNotes()"><i class="fa-solid fa-wand-magic-sparkles"></i> Sintetizza in Memory-Hooks</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fa-solid fa-bookmark"></i> Schemi e Concetti Salvati</h3>
+                <div id="savedNotesContainer" style="margin-top: 1rem;"><p style="color: var(--text-muted); font-size: 0.9rem;">Nessuno schema ancora salvato.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAZIONE FIREBASE CLOUD ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDk6zMMTJv83DzUmDx3rsvF7hfzhOOqVqg",
+            authDomain: "medstudentforse.firebaseapp.com",
+            projectId: "medstudentforse",
+            storageBucket: "medstudentforse.firebasestorage.app",
+            messagingSenderId: "645763984887",
+            appId: "1:645763984887:web:bb7dfd316f554cb20712f2"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        let currentUser = null;
+
+        auth.onAuthStateChanged((user) => {
+            const btn = document.getElementById("cloudBtn");
+            if (user) {
+                currentUser = user;
+                if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud-check"></i> Sincronizzato`;
+                loadStateFromCloud();
+            } else {
+                currentUser = null;
+                if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud"></i> Accedi Cloud`;
+            }
+        });
+
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(err => alert("Errore Login: " + err.message));
+        }
+
+        const initialSyllabus = {
+            "Biologia": [
+                {
+                    unit: "Unità 1 - Le basi dell'organizzazione biologica e molecolare della vita",
+                    topics: [
+                        { id: "bio_1_1", text: "L'albero della vita, teoria cellulare e proprietà della materia vivente" },
+                        { id: "bio_1_2", text: "I virus: struttura (capside, involucro), cicli litico/lisogenico e classi di virus" },
+                        { id: "bio_1_3", text: "La cellula procariotica: strutture, parete (Gram +/-) e trasferimento genico orizzontale" },
+                        { id: "bio_1_4", text: "La cellula eucariotica: endomembrane, origine del nucleo ed endosimbiosi mitocondriale" },
+                        { id: "bio_1_5", text: "Macromolecole: zuccheri, lipidi, amminoacidi, legame peptidico e proteine" },
+                        { id: "bio_1_6", text: "Enzimi e modificazioni post-traduzionali (fosforilazione, acetilazione, glicosilazione)" },
+                        { id: "bio_1_7", text: "Nucleotidi e acidi nucleici: modello di Watson e Crick, RNA codificanti e non codificanti" },
+                        { id: "bio_1_8", text: "Basi del metabolismo: anabolismo, catabolismo, reazioni di condensazione e idrolisi" }
+                    ]
+                },
+                {
+                    unit: "Unità 2 - Meccanismi cellulari di trasmissione e controllo dell'informazione genetica ed epigenetica",
+                    topics: [
+                        { id: "bio_2_1", text: "Il genoma eucariotico: cromosomi lineari, DNA centromerico e telomerico" },
+                        { id: "bio_2_2", text: "La cromatina: nucleosomi, istoni, eucromatina, eterocromatina e rimodellamento" },
+                        { id: "bio_2_3", text: "Epigenetica: metilazione del DNA, modificazioni istoniche e condensine" },
+                        { id: "bio_2_4", text: "Il genoma umano: sequenze singole, famiglie geniche e sequenze ripetute (LINE, SINE, retrovirus)" },
+                        { id: "bio_2_5", text: "Ripetizioni in tandem (minisatelliti, microsatelliti) ed elementi mobili del DNA" }
+                    ]
+                },
+                {
+                    unit: "Unità 3 - Il flusso dell'informazione",
+                    topics: [
+                        { id: "bio_3_1", text: "Replicazione del DNA: meccanismo semiconservativo, forcella replicativa ed enzimi coinvolti" },
+                        { id: "bio_3_2", text: "Filamento continuo/discontinuo, frammenti di Okazaki, telomeri e senescenza replicativa" },
+                        { id: "bio_3_3", text: "Anatomia del gene procariotico ed eucariotico: geni monocistronici e policistronici" },
+                        { id: "bio_3_4", text: "Trascrizione nei procarioti e regolazione tramite operone Lac" },
+                        { id: "bio_3_5", text: "Trascrizione negli eucarioti: RNA polimerasi I, II, III, TATA box e fattori di trascrizione" },
+                        { id: "bio_3_6", text: "Maturazione dell'mRNA: capping, poliadenilazione, splicing alternativo ed editing" },
+                        { id: "bio_3_7", text: "Regolazione della stabilità dell'mRNA (miRNA e RNA interference) e maturazione rRNA/tRNA" },
+                        { id: "bio_3_8", text: "Sintesi proteica: codice genetico, ribosomi, tRNA e fasi della traduzione" },
+                        { id: "bio_3_9", text: "Ripiegamento proteico, chaperon molecolari e degradazione proteasomica ubiquitina-dipendente" }
+                    ]
+                },
+                {
+                    unit: "Unità 4 - Meccanismi cellulari di trasmissione e controllo dei caratteri selvatici e mutati",
+                    topics: [
+                        { id: "bio_4_1", text: "Variazioni del genoma: mutazioni geniche, cromosomiche ed espansione di sequenze ripetute" },
+                        { id: "bio_4_2", text: "Meccanismi di riparazione del danno al DNA su singolo e doppio filamento" },
+                        { id: "bio_4_3", text: "Alleli e leggi di Mendel: dominanza, recessività, segregazione e assortimento indipendente" },
+                        { id: "bio_4_4", text: "Estensioni mendeliane: dominanza incompleta, codominanza, poliallelia, pleiotropia ed epistasi" },
+                        { id: "bio_4_5", text: "Associazione genica completa/incompleta, mappe genetiche e imprinting genomico" },
+                        { id: "bio_4_6", text: "Penetranza, espressività, caratteri poligenici ed eredità quantitativa" },
+                        { id: "bio_4_7", text: "Cariotipo umano, bandeggio ed alterazioni numeriche/strutturali (es. trisomia 21)" },
+                        { id: "bio_4_8", text: "Alberi genealogici: ereditarietà autosomica, legata a X/Y e mitocondriale" }
+                    ]
+                },
+                {
+                    unit: "Unità 5 - Le strutture cellulari: biogenesi, morfologia e funzioni",
+                    topics: [
+                        { id: "bio_5_1", text: "Membrane biologiche: modello a mosaico fluido, glicocalice e asimmetria" },
+                        { id: "bio_5_2", text: "Trasporto di membrana: diffusione, osmosi, trasportatori attivi/passivi, pompe ATPasi e ABC" },
+                        { id: "bio_5_3", text: "Aspetti biologici del potenziale di membrana e del potenziale d'azione" },
+                        { id: "bio_5_4", text: "Il nucleo: involucro nucleare, pori nucleari, importine/esportine e sistema Ran" },
+                        { id: "bio_5_5", text: "I mitocondri: struttura, genoma mitocondriale, bioenergetica e dinamiche (fusione/fissione)" },
+                        { id: "bio_5_6", text: "I perossisomi: funzioni cataboliche/detossificanti, biogenesi e sindrome di Zellweger" },
+                        { id: "bio_5_7", text: "Via secretoria: RET, REL, apparato di Golgi, sequenza segnale SRP e controllo di qualità" },
+                        { id: "bio_5_8", text: "Traffico vescicolare: proteine di rivestimento, NSF, SNARE, Rab e fosfoinositidi" },
+                        { id: "bio_5_9", text: "Endocitosi (fluida e mediata da recettori), endosomi, lisosomi, transcitosi e fagocitosi" },
+                        { id: "bio_5_10", text: "Autofagia: macroautofagia, microautofagia, autofagia chaperon-mediata e mitofagia" },
+                        { id: "bio_5_11", text: "Citoscheletro: microtubuli (dineine/chinesine, ciglia/flagelli), microfilamenti di actina e filamenti intermedi" }
+                    ]
+                },
+                {
+                    unit: "Unità 6 - La cellula e l'ambiente, la segnalazione cellulare e la trasduzione del segnale",
+                    topics: [
+                        { id: "bio_6_1", text: "Matrice extracellulare: struttura, integrine, meccanotrasduzione e fibronectina" },
+                        { id: "bio_6_2", text: "Comunicazione intercellulare: caderine, CAM e giunzioni (occludenti, aderenti, desmosomi, gap)" },
+                        { id: "bio_6_3", text: "Segnalazione cellulare: autocrina, paracrina, endocrina, sinaptica e recettori intracellulari" },
+                        { id: "bio_6_4", text: "Recettori accoppiati a proteine G: proteine G trimeriche, GEF/GAP, secondi messaggeri e desensitizzazione" },
+                        { id: "bio_6_5", text: "Recettori ad attività enzimatica: RTK, via Ras-MAP chinasi, recettore insulina/EGF ed oncogeni" }
+                    ]
+                },
+                {
+                    unit: "Unità 7 - Il controllo della proliferazione, della sopravvivenza e morte cellulare",
+                    topics: [
+                        { id: "bio_7_1", text: "Ciclo cellulare: cicline, CDK, punto di restrizione, via Rb/E2F e proteina p53" },
+                        { id: "bio_7_2", text: "Mitosi: fasi, fuso mitotico, complesso NDC80, APC/C, separazione dei cromatidi e citodieresi" },
+                        { id: "bio_7_3", text: "Meiosi: fasi molecolari, crossing-over, cause di aneuploidia e gametogenesi umana" },
+                        { id: "bio_7_4", text: "Concetto di cellula staminale" },
+                        { id: "bio_7_5", text: "Morte cellulare: necrosi vs apoptosi (vie intrinseca/estrinseca, caspasi e famiglia BCL2)" }
+                    ]
+                }
+            ],
+            "Chimica": [
+                {
+                    unit: "Unità 1 - Struttura dell'atomo, legami chimici e termodinamica dei sistemi aperti",
+                    topics: [
+                        { id: "chem_1_1", text: "Teoria atomica: protoni, neutroni, elettroni, numeri atomico/massa, isotopi e cenni RMN" },
+                        { id: "chem_1_2", text: "Numeri quantici, orbitali, principio di Pauli, regola di Hund e configurazione elettronica" },
+                        { id: "chem_1_3", text: "Tavola periodica e proprietà periodiche: raggio atomico, ionizzazione, elettronegatività" },
+                        { id: "chem_1_4", text: "Massa molecolare, mole, numero di Avogadro e Unità di Massa Atomica" },
+                        { id: "chem_1_5", text: "Legame chimico: covalente (puro/polare/dativo), ionico, metallico e ibridazioni (sp, sp2, sp3)" },
+                        { id: "chem_1_6", text: "Geometria molecolare, interazioni deboli (legame H, van der Waals) ed idrofobiche" },
+                        { id: "chem_1_7", text: "Numero di ossidazione, formule di struttura e nomenclatura (ossidi, idrossidi, acidi, sali)" },
+                        { id: "chem_1_8", text: "Stati di aggregazione: stato aeriforme (leggi dei gas perfetti), liquido (pressione di vapore) e solido" },
+                        { id: "chem_1_9", text: "Termodinamica: entalpia, entropia, energia libera di Gibbs (delta G) e spontaneità dei processi" }
+                    ]
+                },
+                {
+                    unit: "Unità 2 - Miscele, soluzioni e proprietà colligative",
+                    topics: [
+                        { id: "chem_2_1", text: "Miscele biologiche: soluzioni, sospensioni, colloidi e solubilità (Legge di Henry)" },
+                        { id: "chem_2_2", text: "Unità di concentrazione: percentuali, Molarità, Molalità, frazione molare ed equivalenti" },
+                        { id: "chem_2_3", text: "Miscele di gas e pressione parziale (Legge di Dalton) nella respirazione" },
+                        { id: "chem_2_4", text: "Proprietà colligative: tensione di vapore (Raoult), ebullioscopia, crioscopia e pressione osmotica" },
+                        { id: "chem_2_5", text: "Osmolarità, osmolalità, fattore di van't Hoff, soluzioni isotoniche/ipertoniche ed implicazioni (emolisi/edema)" }
+                    ]
+                },
+                {
+                    unit: "Unità 3 - Reazioni chimiche, cinetica ed equilibrio chimico",
+                    topics: [
+                        { id: "chem_3_1", text: "Bilanciamento delle reazioni e conservazione di massa, energia e carica" },
+                        { id: "chem_3_2", text: "Cinetica chimica: velocità di reazione, equazione di Arrhenius ed energia di attivazione" },
+                        { id: "chem_3_3", text: "Teoria dello stato di transizione e ruolo dei catalizzatori biologici (enzimi)" },
+                        { id: "chem_3_4", text: "Equilibrio chimico: legge d'azione di massa, costante Kc, principio di Le Chatelier ed equilibrio eterogeneo" }
+                    ]
+                },
+                {
+                    unit: "Unità 4 - Acidi, basi, pH, tamponi e reazioni REDOX",
+                    topics: [
+                        { id: "chem_4_1", text: "Teorie acido-base (Arrhenius, Brønsted-Lowry, Lewis), costante di autoprotolisi Kw e scala del pH" },
+                        { id: "chem_4_2", text: "Calcolo del pH per acidi/basi forti e deboli, acidi poliprotici e idrolisi salina" },
+                        { id: "chem_4_3", text: "Soluzioni tampone: equazione di Henderson-Hasselbalch ed efficienza tampone" },
+                        { id: "chem_4_4", text: "Equilibrio acido-base nei fluidi biologici: tampone bicarbonato, fosfato, proteine e stati patologici (acidosi/alcalosi)" },
+                        { id: "chem_4_5", text: "Reazioni di ossido-riduzione: semireazioni, potenziali redox, equazione di Nernst e lavoro chimico" },
+                        { id: "chem_4_6", text: "REDOX biologiche: ossigeno come accettore, reazioni di Fenton e Haber-Weiss (radicale idrossilico)" }
+                    ]
+                },
+                {
+                    unit: "Unità 5 - Proprietà del carbonio e reattività dei composti organici",
+                    topics: [
+                        { id: "chem_5_1", text: "Proprietà del carbonio, nomenclatura IUPAC e reattività" },
+                        { id: "chem_5_2", text: "Stereochimica: diastereoisomeri, enantiomeri, epimeri, miscele racemiche e convenzione Fischer/RS" },
+                        { id: "chem_5_3", text: "Intermedi di reazione: rottura omolitica/eterolitica, carbocationi, carboanioni, nucleofili ed elettrofili" },
+                        { id: "chem_5_4", text: "Alcani, cicloalcani ed alcheni: addizione elettrofila e dieni coniugati" },
+                        { id: "chem_5_5", text: "Composti aromatici: benzene, pirimidine, purine, regola di Hückel e tossicità" }
+                    ]
+                },
+                {
+                    unit: "Unità 6 - Gruppi funzionali ed isomerie",
+                    topics: [
+                        { id: "chem_6_1", text: "Alcoli, fenoli, tioli, eteri e tioeteri: acidità, reazioni di ossidazione e disidratazione" },
+                        { id: "chem_6_2", text: "Ammine: basicità, nucleofilicità, alchilazione e nitrosammine" },
+                        { id: "chem_6_3", text: "Aldeidi e chetoni: addizione nucleofila, emiacetali/acetali, tautomeria cheto-enolica e ubichinone" },
+                        { id: "chem_6_4", text: "Acidi carbossilici e derivati (anidridi, esteri, ammidi, tioesteri): sostituzione nucleofila acilica e decarbossilazione" }
+                    ]
+                },
+                {
+                    unit: "Unità 7 - Amminoacidi, proteine, carboidrati, lipidi ed acidi nucleici",
+                    topics: [
+                        { id: "chem_7_1", text: "Amminoacidi: classificazione, proprietà acido-base, punto isoelettrico e legame peptidico" },
+                        { id: "chem_7_2", text: "Livelli di struttura delle proteine (primaria, secondaria, terziaria, quaternaria)" },
+                        { id: "chem_7_3", text: "Carboidrati: monosaccaridi (ciclizzazione, anomeri), legame glicosidico e polisaccaridi (amido, glicogeno, cellulosa)" },
+                        { id: "chem_7_4", text: "Lipidi: acidi grassi, trigliceridi, fosfolipidi, sfingolipidi, colesterolo e derivati steroidei" },
+                        { id: "chem_7_5", text: "Nucleotidi e acidi nucleici: coenzimi REDOX (NAD+, FAD), legame fosfodiestere e strutture DNA/RNA" },
+                        { id: "chem_7_6", text: "Modificazioni non enzimatiche delle macromolecole ed antiossidanti (glutatione, tocoferolo)" }
+                    ]
+                }
+            ],
+            "Fisica": [
+                {
+                    unit: "Unità 1 - Introduzione ai metodi della fisica",
+                    topics: [
+                        { id: "phys_1_1", text: "Grandezze fisiche, Sistema Internazionale, dimensioni e conversioni delle unità" },
+                        { id: "phys_1_2", text: "Notazione scientifica, ordini di grandezza, grandezze scalari ed intensive/estensive" },
+                        { id: "phys_1_3", text: "Vettori: componenti ed operazioni (somma, differenza, prodotto scalare e vettoriale)" }
+                    ]
+                },
+                {
+                    unit: "Unità 2 - Meccanica del punto e dei sistemi",
+                    topics: [
+                        { id: "phys_2_1", text: "Cinematica: posizione, traiettoria, legge oraria, velocità ed accelerazione (media ed istantanea)" },
+                        { id: "phys_2_2", text: "Moti: rettilineo uniforme, accelerato, caduta libera, parabolico e circolare uniforme" },
+                        { id: "phys_2_3", text: "Principi della dinamica di Newton (I, II e III principio) ed equilibrio statico" },
+                        { id: "phys_2_4", text: "Forze: peso, attrito statico/dinamico, tensione e forza elastica (Legge di Hooke)" },
+                        { id: "phys_2_5", text: "Lavoro meccanico, potenza e Teorema dell'Energia Cinetica" },
+                        { id: "phys_2_6", text: "Forze conservative vs non conservative ed Energia Potenziale (gravitazionale ed elastica)" },
+                        { id: "phys_2_7", text: "Conservazione dell'Energia Meccanica nei sistemi ideali" },
+                        { id: "phys_2_8", text: "Quantità di moto, impulso e principio di conservazione nei sistemi isolati" },
+                        { id: "phys_2_9", text: "Corpo rigido: centro di massa, momento torcente, equilibrio rotazionale e leve nel corpo umano" }
+                    ]
+                },
+                {
+                    unit: "Unità 3 - Meccanica dei fluidi",
+                    topics: [
+                        { id: "phys_3_1", text: "Statica dei fluidi: densità, pressione, Legge di Stevino, Principio di Pascal e Principio di Archimede" },
+                        { id: "phys_3_2", text: "Misura della pressione (esperimento di Torricelli e manometro)" },
+                        { id: "phys_3_3", text: "Idrodinamica dei fluidi ideali: portata, equazione di continuità e Teorema di Bernoulli" },
+                        { id: "phys_3_4", text: "Fluidi reali: viscosità, profilo parabolico, Legge di Poiseuille e resistenze vascolari" },
+                        { id: "phys_3_5", text: "Fenomeni di superficie: tensione superficiale, capillarità e Legge di Laplace" }
+                    ]
+                },
+                {
+                    unit: "Unità 4 - Onde meccaniche ed acustica",
+                    topics: [
+                        { id: "phys_4_1", text: "Onde meccaniche: oscillatore armonico, frequenza, periodo, lunghezza d'onda e velocità" },
+                        { id: "phys_4_2", text: "Onde trasversali e longitudinali, sovrapposizione ed interferenza" },
+                        { id: "phys_4_3", text: "Energia, potenza ed intensità di un'onda (legge dell'inverso del quadrato)" },
+                        { id: "phys_4_4", text: "Onde acustiche: velocità del suono, intensità sonora, scala in decibel ed Effetto Doppler" }
+                    ]
+                },
+                {
+                    unit: "Unità 5 - Termodinamica",
+                    topics: [
+                        { id: "phys_5_1", text: "Sistemi termodinamici, temperatura, scala Kelvin ed equazione dei gas perfetti" },
+                        { id: "phys_5_2", text: "Calore, capacità termica, calore specifico, calori latenti di passaggio di stato e calorimetria" },
+                        { id: "phys_5_3", text: "Meccanismi di trasmissione del calore: conduzione, convezione ed irraggiamento" },
+                        { id: "phys_5_4", text: "Primo Principio della Termodinamica: energia interna, lavoro e trasformazioni canoniche" },
+                        { id: "phys_5_5", text: "Secondo Principio della Termodinamica: cicli, macchine termiche, rendimento ed entropia" }
+                    ]
+                },
+                {
+                    unit: "Unità 6 - Elettricità e magnetismo",
+                    topics: [
+                        { id: "phys_6_1", text: "Elettrostatica: carica elettrica, Legge di Coulomb, campo elettrico e linee di forza" },
+                        { id: "phys_6_2", text: "Energia potenziale elettrica, potenziale e differenza di potenziale" },
+                        { id: "phys_6_3", text: "Conduttori, dielettrici, induzione e polarizzazione" },
+                        { id: "phys_6_4", text: "Corrente continua, Leggi di Ohm, resistività, effetto Joule e resistenze in serie/parallelo" },
+                        { id: "phys_6_5", text: "Capacità elettrica, condensatore piano e condensatori in serie/parallelo" },
+                        { id: "phys_6_6", text: "Campo magnetico, Forza di Lorentz su cariche in moto e fili percorsi da corrente" },
+                        { id: "phys_6_7", text: "Induzione elettromagnetica: flusso magnetico e Legge di Faraday-Neumann-Lenz" }
+                    ]
+                },
+                {
+                    unit: "Unità 7 - Fisica delle radiazioni ed ottica",
+                    topics: [
+                        { id: "phys_7_1", text: "Onde elettromagnetiche e spettro elettromagnetico (da onde radio a raggi gamma)" },
+                        { id: "phys_7_2", text: "Quantizzazione dell'energia e fotoni (E=h*nu)" },
+                        { id: "phys_7_3", text: "Assorbimento della radiazione e Legge di Lambert-Beer" },
+                        { id: "phys_7_4", text: "Radioattività: decadimenti alfa, beta, gamma, legge del decadimento ed emivita" },
+                        { id: "phys_7_5", text: "Radiazioni ionizzanti vs non ionizzanti" },
+                        { id: "phys_7_6", text: "Ottica: riflessione, rifrazione, indice di rifrazione e lenti sottili convergenti" }
+                    ]
+                }
+            ]
+        };
+
+        let appState = {
+            userName: null,
+            userColor: '#ff2986',
+            userCustomGreeting: '',
+            topicsData: {},
+            todayPlannedTopicIds: [],
+            todayCompletedTopicIds: [],
+            timerSeconds: 25 * 60,
+            activeSessionDurationMinutes: 25,
+            timerRunning: false,
+            timerInterval: null,
+            studyHours: { "Biologia": 0, "Chimica": 0, "Fisica": 0 },
+            simulations: [],
+            customFlashcards: [],
+            quickNotes: [],
+            collapsedUnits: {},
+            streak: 0,
+            theme: 'dark'
+        };
+
+        let manualUnlock = false;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadState();
+            initSyllabusData();
+            
+            if (!appState.userName) {
+                showWelcomeModal();
+            } else {
+                applyUserProfile();
+            }
+
+            renderAgenda();
+            renderSyllabus();
+            populateFlashcardTopicSelectors();
+            populateNoteTopicSelector();
+            updateDashboard();
+            updateTimerDisplay();
+            updateStudyHoursDisplay();
+            renderSimulationsHistory();
+            renderSavedNotes();
+            applyTheme();
+        });
+
+        function loadState() {
+            const saved = localStorage.getItem("medstudio_state");
+            if (saved) {
+                try { 
+                    const parsed = JSON.parse(saved);
+                    if (parsed.topicsData && Object.keys(parsed.topicsData).some(k => k.startsWith('bio_'))) {
+                        appState = Object.assign(appState, parsed); 
+                    } else {
+                        localStorage.removeItem("medstudio_state");
+                    }
+                } catch(e) { 
+                    localStorage.removeItem("medstudio_state");
+                }
+            }
+            if (!appState.studyHours) appState.studyHours = { "Biologia": 0, "Chimica": 0, "Fisica": 0 };
+            if (!appState.todayPlannedTopicIds) appState.todayPlannedTopicIds = [];
+            if (!appState.todayCompletedTopicIds) appState.todayCompletedTopicIds = [];
+            if (!appState.quickNotes) appState.quickNotes = [];
+        }
+
+        function saveState() {
+            localStorage.setItem("medstudio_state", JSON.stringify(appState));
+            updateDashboard();
+
+            if (currentUser) {
+                db.collection("users").doc(currentUser.uid).set({
+                    appState: appState
+                }, { merge: true }).catch(err => console.error("Errore salvataggio Cloud:", err));
+            }
+        }
+
+        function loadStateFromCloud() {
+            if (!currentUser) return;
+            db.collection("users").doc(currentUser.uid).get().then((doc) => {
+                if (doc.exists && doc.data().appState) {
+                    appState = Object.assign(appState, doc.data().appState);
+                    applyUserProfile();
+                    renderAgenda();
+                    renderSyllabus();
+                    updateDashboard();
+                    updateTimerDisplay();
+                    updateStudyHoursDisplay();
+                    renderSimulationsHistory();
+                    renderSavedNotes();
+                } else {
+                    saveState();
+                }
+            });
+        }
+
+        function isLockActive() {
+            if (manualUnlock) return false;
+            const now = new Date();
+            return now.getHours() >= 8;
+        }
+
+        function toggleManualUnlock() {
+            manualUnlock = !manualUnlock;
+            renderAgenda();
+            renderSyllabus();
+        }
+
+        function showWelcomeModal() { 
+            const overlay = document.getElementById("welcomeOverlay");
+            if (overlay) overlay.style.display = "flex"; 
+        }
+
+        function selectUserProfile(name, color, customGreeting) {
+            appState.userName = name;
+            appState.userColor = color;
+            appState.userCustomGreeting = customGreeting;
+            saveState();
+            applyUserProfile();
+            const overlay = document.getElementById("welcomeOverlay");
+            if (overlay) overlay.style.display = "none";
+        }
+
+        function applyUserProfile() {
+            if (appState.userName) {
+                document.documentElement.style.setProperty('--accent', appState.userColor);
+                const badge = document.getElementById("userBadge");
+                if (badge) {
+                    badge.innerText = appState.userName;
+                    badge.style.color = appState.userColor;
+                }
+                const greeting = document.getElementById("welcomeGreeting");
+                if (greeting) {
+                    greeting.innerText = appState.userCustomGreeting || `Ok ${appState.userName}, iniziamo!`;
+                }
+            }
+        }
+
+        function initSyllabusData() {
+            for (let sub in initialSyllabus) {
+                initialSyllabus[sub].forEach(u => {
+                    u.topics.forEach(tObj => {
+                        if (!appState.topicsData[tObj.id]) {
+                            appState.topicsData[tObj.id] = {
+                                text: tObj.text,
+                                subject: sub,
+                                status: 'todo',
+                                nextReview: null
+                            };
+                        }
+                    });
+                });
+            }
+        }
+
+        function renderAgenda() {
+            const locked = isLockActive();
+            const banner = document.getElementById("lockStatusBanner");
+            if (banner) {
+                if (locked) {
+                    banner.className = "lock-banner lock-active";
+                    banner.innerHTML = `
+                        <span><i class="fa-solid fa-lock"></i> Lock-In Attivo (Dopo le 8:00 AM): Obiettivi bloccati.</span>
+                        <button class="btn btn-secondary btn-sm" style="background: rgba(255,255,255,0.2); color: white;" onclick="toggleManualUnlock()"><i class="fa-solid fa-key"></i> Sblocca Modifiche</button>
+                    `;
+                } else {
+                    banner.className = "lock-banner lock-inactive";
+                    banner.innerHTML = `
+                        <span><i class="fa-solid fa-lock-open"></i> Programmazione Aperta: aggiungi/rimuovi obiettivi liberamente.</span>
+                        ${manualUnlock ? `<button class="btn btn-secondary btn-sm" onclick="toggleManualUnlock()"><i class="fa-solid fa-lock"></i> Riattiva Blocco</button>` : `<span style="font-size: 0.8rem; opacity: 0.9;">Scatta automatico alle 8:00 AM</span>`}
+                    `;
+                }
+            }
+
+            const srList = document.getElementById("spacedRepetitionList");
+            if (srList) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                let dueItems = [];
+                
+                for (let id in appState.topicsData) {
+                    const td = appState.topicsData[id];
+                    if (td.status === 'review' && td.nextReview && td.nextReview <= todayStr) {
+                        dueItems.push({ id, ...td });
+                    }
+                }
+
+                if (dueItems.length === 0) {
+                    srList.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nessun argomento in scadenza di ripasso oggi. Ottimo!</p>`;
+                } else {
+                    srList.innerHTML = dueItems.map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 0.5rem 0.75rem; border-radius: 8px; margin-bottom: 0.4rem; border: 1px solid var(--border);">
+                            <div><b>[${item.subject}]</b> ${item.text}</div>
+                            <button class="btn btn-secondary btn-sm" onclick="addToAgenda('${item.id}')" ${appState.todayPlannedTopicIds.includes(item.id) || locked ? 'disabled' : ''}>
+                                ${appState.todayPlannedTopicIds.includes(item.id) ? 'Già in Agenda 📌' : '+ Aggiungi all\'Agenda'}
+                            </button>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            const todayContainer = document.getElementById("todayTaskList");
+            if (todayContainer) {
+                if (appState.todayPlannedTopicIds.length === 0) {
+                    todayContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nessun argomento in Agenda. Vai nella scheda <b>Syllabus</b> e premi <b>+ Agenda</b> per aggiungere obiettivi!</p>`;
+                } else {
+                    todayContainer.innerHTML = appState.todayPlannedTopicIds.map(id => {
+                        const td = appState.topicsData[id] || { text: 'Argomento', subject: 'Generale' };
+                        const isDone = appState.todayCompletedTopicIds.includes(id);
+                        return `
+                            <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); ${isDone ? 'opacity: 0.6; text-decoration: line-through;' : ''}">
+                                <div><b>[${td.subject}]</b> ${td.text}</div>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <button class="btn btn-sm" style="background-color: var(--accent);" onclick="startTimerForTopic('${td.subject}')"><i class="fa-solid fa-play"></i> Pomodoro</button>
+                                    <button class="btn btn-sm ${isDone ? 'btn-secondary' : ''}" style="${isDone ? '' : 'background-color: var(--success); color: white;'}" onclick="toggleTodayTaskDone('${id}')">
+                                        ${isDone ? 'Completato ✅' : 'Spunta Fatto'}
+                                    </button>
+                                    ${!locked ? `<button class="btn btn-secondary btn-sm" onclick="removeFromAgenda('${id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const progElem = document.getElementById("agendaProgress");
+            if (progElem) {
+                progElem.innerText = `${appState.todayCompletedTopicIds.length}/${appState.todayPlannedTopicIds.length} Completati`;
+            }
+        }
+
+        function addToAgenda(topicId) {
+            if (isLockActive()) { 
+                alert("L'Agenda è bloccata per oggi perché sono passate le 8:00 AM!\n\nPremi il pulsante 'Sblocca Modifiche' in alto nell'Agenda per aggiungere altri argomenti."); 
+                return; 
+            }
+            if (!appState.todayPlannedTopicIds) appState.todayPlannedTopicIds = [];
+            
+            if (!appState.todayPlannedTopicIds.includes(topicId)) {
+                appState.todayPlannedTopicIds.push(topicId);
+                saveState();
+                renderAgenda();
+                renderSyllabus();
+                alert("Argomento aggiunto all'Agenda di Oggi! 📌");
+            }
+        }
+
+        function removeFromAgenda(topicId) {
+            if (isLockActive()) { 
+                alert("L'Agenda è bloccata per oggi! Premi 'Sblocca Modifiche' in alto nell'Agenda per rimuovere i task."); 
+                return; 
+            }
+            appState.todayPlannedTopicIds = appState.todayPlannedTopicIds.filter(id => id !== topicId);
+            appState.todayCompletedTopicIds = appState.todayCompletedTopicIds.filter(id => id !== topicId);
+            saveState();
+            renderAgenda();
+            renderSyllabus();
+        }
+
+        function toggleTodayTaskDone(topicId) {
+            if (appState.todayCompletedTopicIds.includes(topicId)) {
+                appState.todayCompletedTopicIds = appState.todayCompletedTopicIds.filter(id => id !== topicId);
+            } else {
+                appState.todayCompletedTopicIds.push(topicId);
+            }
+            saveState();
+            renderAgenda();
+        }
+
+        function startTimerForTopic(subject) {
+            const selectElem = document.getElementById("timerSubjectSelect");
+            if (selectElem) selectElem.value = subject;
+            switchTab(null, 'timerTab');
+        }
+
+        function toggleUnit(unitKey) {
+            appState.collapsedUnits[unitKey] = !appState.collapsedUnits[unitKey];
+            saveState();
+            renderSyllabus();
+        }
+
+        function renderSyllabus() {
+            const container = document.getElementById("syllabusContainer");
+            if (!container) return;
+            container.innerHTML = "";
+
+            const locked = isLockActive();
+
+            for (let sub in initialSyllabus) {
+                const subTitle = document.createElement("h2");
+                subTitle.className = "subject-title";
+                subTitle.innerText = sub;
+                container.appendChild(subTitle);
+
+                initialSyllabus[sub].forEach(u => {
+                    const uCard = document.createElement("div");
+                    uCard.className = "card";
+                    uCard.style.padding = "0.75rem";
+
+                    const isCollapsed = !!appState.collapsedUnits[u.unit];
+
+                    const uHeader = document.createElement("div");
+                    uHeader.className = "unit-header";
+                    uHeader.onclick = () => toggleUnit(u.unit);
+                    uHeader.innerHTML = `<span>${u.unit}</span> <i class="fa-solid fa-chevron-${isCollapsed ? 'down' : 'up'}"></i>`;
+                    
+                    const topicList = document.createElement("div");
+                    topicList.className = `topic-list ${isCollapsed ? 'collapsed' : ''}`;
+
+                    u.topics.forEach(tObj => {
+                        const tData = appState.topicsData[tObj.id] || { text: tObj.text, status: 'todo' };
+                        const itemHtml = createTopicItemElement(tObj.id, tData, sub, locked);
+                        topicList.appendChild(itemHtml);
+                    });
+
+                    uCard.appendChild(uHeader);
+                    uCard.appendChild(topicList);
+                    container.appendChild(uCard);
+                });
+            }
+        }
+
+        function createTopicItemElement(topicId, tData, sub, locked) {
+            const item = document.createElement("div");
+            item.className = `topic-item status-${tData.status}`;
+
+            const inAgenda = appState.todayPlannedTopicIds.includes(topicId);
+
+            item.innerHTML = `
+                <div class="topic-info">
+                    <span class="topic-text" style="font-size: 0.95rem; font-weight: 500;"><b>[${sub}]</b> ${tData.text}</span>
+                    ${tData.status === 'review' && tData.nextReview ? `<span class="topic-meta"><i class="fa-solid fa-calendar-day"></i> Prossimo ripasso: ${tData.nextReview}</span>` : ''}
+                </div>
+                <div class="topic-controls">
+                    <button class="btn btn-secondary btn-sm" onclick="addToAgenda('${topicId}')" ${inAgenda ? 'disabled' : ''}>
+                        ${inAgenda ? 'In Agenda 📌' : '+ Agenda'}
+                    </button>
+                    <select onchange="updateTopicStatus('${topicId}', this.value)">
+                        <option value="todo" ${tData.status==='todo'?'selected':''}>⬜ Da Studiare</option>
+                        <option value="review" ${tData.status==='review'?'selected':''}>🔄 In Ripasso</option>
+                        <option value="done" ${tData.status==='done'?'selected':''}>✅ Completato</option>
+                    </select>
+                </div>
+            `;
+            return item;
+        }
+
+        function updateTopicStatus(topicId, status) {
+            if (appState.topicsData[topicId]) {
+                appState.topicsData[topicId].status = status;
+                if (status === 'review') {
+                    const next = new Date();
+                    next.setDate(next.getDate() + 3);
+                    appState.topicsData[topicId].nextReview = next.toISOString().split('T')[0];
+                } else {
+                    appState.topicsData[topicId].nextReview = null;
+                }
+                saveState();
+                renderSyllabus();
+                renderAgenda();
+            }
+        }
+
+        function populateFlashcardTopicSelectors() {
+            const fcSelect = document.getElementById("fcTopicSelect");
+            const filterSelect = document.getElementById("fcSpecificTopicSelect");
+            
+            if (!fcSelect || !filterSelect) return;
+
+            fcSelect.innerHTML = "";
+            filterSelect.innerHTML = "";
+
+            for (let sub in initialSyllabus) {
+                let group1 = document.createElement("optgroup");
+                group1.label = sub;
+                let group2 = document.createElement("optgroup");
+                group2.label = sub;
+
+                initialSyllabus[sub].forEach(u => {
+                    u.topics.forEach(tObj => {
+                        let opt1 = document.createElement("option");
+                        opt1.value = tObj.id;
+                        opt1.innerText = tObj.text;
+                        group1.appendChild(opt1);
+
+                        let opt2 = document.createElement("option");
+                        opt2.value = tObj.id;
+                        opt2.innerText = tObj.text;
+                        group2.appendChild(opt2);
+                    });
+                });
+
+                fcSelect.appendChild(group1);
+                filterSelect.appendChild(group2);
+            }
+        }
+
+        function populateNoteTopicSelector() {
+            const noteSelect = document.getElementById("noteTopicSelect");
+            if (!noteSelect) return;
+            noteSelect.innerHTML = "";
+
+            for (let sub in initialSyllabus) {
+                let group = document.createElement("optgroup");
+                group.label = sub;
+                initialSyllabus[sub].forEach(u => {
+                    u.topics.forEach(tObj => {
+                        let opt = document.createElement("option");
+                        opt.value = tObj.id;
+                        opt.innerText = tObj.text;
+                        group.appendChild(opt);
+                    });
+                });
+                noteSelect.appendChild(group);
+            }
+        }
+
+        function toggleFcTopicFilter() {
+            const modeSelect = document.getElementById("fcSourceSelect");
+            const container = document.getElementById("specificTopicFilterContainer");
+            if (modeSelect && container) {
+                container.style.display = (modeSelect.value === 'specific_topic') ? 'block' : 'none';
+            }
+        }
+
+        function updateDashboard() {
+            const examDate = new Date('2026-12-10');
+            const now = new Date();
+            const diffDays = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+            
+            const countElem = document.getElementById("examCountdown");
+            if (countElem) countElem.innerText = diffDays > 0 ? diffDays : 0;
+
+            let total = 0, completed = 0;
+            for (let key in appState.topicsData) {
+                total++;
+                if (appState.topicsData[key].status === 'done') completed++;
+            }
+            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            const rateElem = document.getElementById("completionRate");
+            if (rateElem) rateElem.innerText = rate + "%";
+
+            const remaining = total - completed;
+            const daily = diffDays > 0 ? (remaining / diffDays).toFixed(1) : remaining;
+            
+            const goalElem = document.getElementById("dailyGoal");
+            if (goalElem) goalElem.innerText = daily;
+            
+            const streakElem = document.getElementById("studyStreak");
+            if (streakElem) streakElem.innerText = (appState.streak || 0) + " 🔥";
+        }
+
+        function setTimerPreset(mins) {
+            if (appState.timerRunning) resetTimer();
+            const parsedMins = parseInt(mins);
+            appState.timerSeconds = parsedMins * 60;
+            appState.activeSessionDurationMinutes = parsedMins;
+            
+            const customInp = document.getElementById("customMinutes");
+            if (customInp) customInp.value = "";
+            updateTimerDisplay();
+        }
+
+        function setCustomTimer(mins) {
+            if (!mins || mins <= 0) return;
+            if (appState.timerRunning) resetTimer();
+            const parsedMins = parseInt(mins);
+            appState.timerSeconds = parsedMins * 60;
+            appState.activeSessionDurationMinutes = parsedMins;
+            updateTimerDisplay();
+        }
+
+        function addManualHours(hoursToAdd) {
+            const selectedSubElem = document.getElementById("timerSubjectSelect");
+            const selectedSub = selectedSubElem ? selectedSubElem.value : "Biologia";
+            
+            if (!appState.studyHours) appState.studyHours = { "Biologia": 0, "Chimica": 0, "Fisica": 0 };
+            
+            appState.studyHours[selectedSub] = Math.max(0, (appState.studyHours[selectedSub] || 0) + parseFloat(hoursToAdd));
+            
+            updateStudyHoursDisplay();
+            saveState();
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById("startTimerBtn");
+            if (appState.timerRunning) {
+                clearInterval(appState.timerInterval);
+                appState.timerRunning = false;
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i> Avvia`;
+            } else {
+                appState.timerRunning = true;
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-pause"></i> Pausa`;
+                
+                appState.timerInterval = setInterval(() => {
+                    appState.timerSeconds--;
+                    if (appState.timerSeconds <= 0) {
+                        clearInterval(appState.timerInterval);
+                        appState.timerRunning = false;
+                        
+                        const selectedSubElem = document.getElementById("timerSubjectSelect");
+                        const selectedSub = selectedSubElem ? selectedSubElem.value : "Biologia";
+                        const minsDone = appState.activeSessionDurationMinutes || 25;
+                        const hoursToAdd = minsDone / 60;
+                        
+                        if (!appState.studyHours) appState.studyHours = { "Biologia": 0, "Chimica": 0, "Fisica": 0 };
+                        appState.studyHours[selectedSub] = (appState.studyHours[selectedSub] || 0) + hoursToAdd;
+                        
+                        updateStudyHoursDisplay();
+                        saveState();
+                        resetTimer();
+                        alert(`Sessione completata per ${selectedSub}! Aggiunte ${hoursToAdd.toFixed(1)} ore.`);
+                    }
+                    updateTimerDisplay();
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            if (appState.timerRunning) clearInterval(appState.timerInterval);
+            appState.timerRunning = false;
+            const currentMins = appState.activeSessionDurationMinutes || 25;
+            appState.timerSeconds = currentMins * 60;
+            const btn = document.getElementById("startTimerBtn");
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i> Avvia`;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(appState.timerSeconds / 60);
+            const secs = appState.timerSeconds % 60;
+            const timerElem = document.getElementById("timerDisplay");
+            if (timerElem) {
+                timerElem.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updateStudyHoursDisplay() {
+            if (!appState.studyHours) appState.studyHours = { "Biologia": 0, "Chimica": 0, "Fisica": 0 };
+            
+            const bio = document.getElementById("timeBio");
+            const chem = document.getElementById("timeChem");
+            const phys = document.getElementById("timePhys");
+            
+            if (bio) bio.innerText = (appState.studyHours["Biologia"] || 0).toFixed(1) + "h";
+            if (chem) chem.innerText = (appState.studyHours["Chimica"] || 0).toFixed(1) + "h";
+            if (phys) phys.innerText = (appState.studyHours["Fisica"] || 0).toFixed(1) + "h";
+        }
+
+        function addCustomFlashcard() {
+            const topicSelect = document.getElementById("fcTopicSelect");
+            const frontInp = document.getElementById("fcFrontInput");
+            const backInp = document.getElementById("fcBackInput");
+
+            if (!topicSelect || !frontInp || !backInp) return;
+
+            const topicId = topicSelect.value;
+            const front = frontInp.value.trim();
+            const back = backInp.value.trim();
+
+            if (!front || !back) { alert("Compila sia la domanda che la risposta!"); return; }
+
+            if (!appState.customFlashcards) appState.customFlashcards = [];
+            const tData = appState.topicsData[topicId];
+            const topicText = tData ? tData.text : 'Generale';
+            const subject = tData ? tData.subject : 'Generale';
+
+            appState.customFlashcards.push({ topicId, topicText, front, back, subject });
+            saveState();
+
+            frontInp.value = "";
+            backInp.value = "";
+            alert("Flashcard aggiunta con successo!");
+        }
+
+        function flipCard() { 
+            const box = document.getElementById("flashcardBox");
+            if (box) box.classList.toggle("flipped"); 
+        }
+
+        function drawRandomFlashcard() {
+            const box = document.getElementById("flashcardBox");
+            if (box) box.classList.remove("flipped");
+            
+            const sourceModeElem = document.getElementById("fcSourceSelect");
+            const targetTopicElem = document.getElementById("fcSpecificTopicSelect");
+            
+            if (!sourceModeElem || !targetTopicElem) return;
+
+            const sourceMode = sourceModeElem.value;
+            const targetTopicId = targetTopicElem.value;
+            
+            let pool = [];
+
+            if (sourceMode === 'custom') {
+                if (appState.customFlashcards && appState.customFlashcards.length > 0) {
+                    pool = appState.customFlashcards.map(c => ({ title: c.front, notes: c.back, topic: c.topicText }));
+                }
+            } else if (sourceMode === 'specific_topic') {
+                if (appState.customFlashcards) {
+                    appState.customFlashcards.filter(c => c.topicId === targetTopicId).forEach(c => {
+                        pool.push({ title: c.front, notes: c.back, topic: c.topicText });
+                    });
+                }
+                const td = appState.topicsData[targetTopicId];
+                if (td) {
+                    pool.push({ title: td.text, notes: "Ripassa il testo e i concetti chiave di questo argomento.", topic: td.text });
+                }
+            } else if (sourceMode === 'all') {
+                if (appState.customFlashcards) {
+                    appState.customFlashcards.forEach(c => {
+                        pool.push({ title: c.front, notes: c.back, topic: c.topicText });
+                    });
+                }
+                Object.keys(appState.topicsData).forEach(tId => {
+                    const td = appState.topicsData[tId];
+                    pool.push({ title: td.text, notes: "Ripassa il testo e i concetti chiave di questo argomento.", topic: td.text });
+                });
+            }
+
+            const fcSub = document.getElementById("fcSubject");
+            const fcTitle = document.getElementById("fcTopicTitle");
+            const fcNotes = document.getElementById("fcNotes");
+
+            if (pool.length === 0) {
+                if (fcSub) fcSub.innerText = "INFO";
+                if (fcTitle) fcTitle.innerText = "Nessuna carta trovata!";
+                if (fcNotes) fcNotes.innerText = "Non ci sono carte per i filtri selezionati.";
+                return;
+            }
+
+            const card = pool[Math.floor(Math.random() * pool.length)];
+
+            setTimeout(() => {
+                if (fcSub) fcSub.innerText = card.topic || "Generale";
+                if (fcTitle) fcTitle.innerText = card.title;
+                if (fcNotes) fcNotes.innerText = card.notes;
+            }, 200);
+        }
+
+        function calculateQuizRisk() {
+            const val = parseInt(document.getElementById("riskOptionsSelect").value);
+            const resultBox = document.getElementById("riskResultBox");
+            if (!resultBox) return;
+
+            if (val === 0) {
+                resultBox.style.borderColor = "var(--danger)";
+                resultBox.innerHTML = `<b>Valore Atteso: -0.02 pt</b> 🔴 NO! Non rispondere. Statisticamente perdi punti nel lungo periodo.`;
+            } else if (val === 1) {
+                resultBox.style.borderColor = "var(--danger)";
+                resultBox.innerHTML = `<b>Valore Atteso: +0.075 pt</b> ⚠️ Rischioso. Guadagno minimo a fronte di un rischio di penalità.`;
+            } else if (val === 2) {
+                resultBox.style.borderColor = "var(--warning)";
+                resultBox.innerHTML = `<b>Valore Atteso: +0.23 pt</b> 🟡 Consigliato se sei sotto il punteggio obiettivo.`;
+            } else if (val === 3) {
+                resultBox.style.borderColor = "var(--success)";
+                resultBox.innerHTML = `<b>Valore Atteso: +0.55 pt</b> 🟢 CONVIENE SEMPRE RISPONDERE! Matematicamente profittevole.`;
+            }
+        }
+
+        function generateQuickNotes() {
+            const topicSelect = document.getElementById("noteTopicSelect");
+            const textInp = document.getElementById("noteTextInput");
+            if (!topicSelect || !textInp || !textInp.value.trim()) { alert("Inserisci prima delle note da sintetizzare!"); return; }
+
+            const topicId = topicSelect.value;
+            const rawText = textInp.value.trim();
+            const td = appState.topicsData[topicId] || { text: "Generale", subject: "Generale" };
+
+            const bulletPoints = rawText.split('.').filter(s => s.trim().length > 3).map(s => `• ${s.trim()}`).join('<br>');
+
+            if (!appState.quickNotes) appState.quickNotes = [];
+            appState.quickNotes.unshift({
+                date: new Date().toLocaleDateString('it-IT'),
+                subject: td.subject,
+                topic: td.text,
+                notes: bulletPoints
+            });
+
+            saveState();
+            textInp.value = "";
+            renderSavedNotes();
+        }
+
+        function renderSavedNotes() {
+            const container = document.getElementById("savedNotesContainer");
+            if (!container) return;
+
+            if (!appState.quickNotes || appState.quickNotes.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nessuno schema ancora salvato.</p>`;
+                return;
+            }
+
+            container.innerHTML = appState.quickNotes.map((n, idx) => `
+                <div style="background-color: var(--bg-card); padding: 0.85rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <b style="color: var(--accent);">[${n.subject}] ${n.topic}</b>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">${n.date}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; line-height: 1.6;">${n.notes}</div>
+                </div>
+            `).join('');
+        }
+
+        function addSimulation() {
+            const correctInp = document.getElementById("simCorrect");
+            const wrongInp = document.getElementById("simWrong");
+            const omittedInp = document.getElementById("simOmitted");
+
+            const correct = parseFloat(correctInp ? correctInp.value : 0) || 0;
+            const wrong = parseFloat(wrongInp ? wrongInp.value : 0) || 0;
+            const omitted = parseFloat(omittedInp ? omittedInp.value : 0) || 0;
+
+            const score = (correct * 1.5) - (wrong * 0.4);
+            appState.simulations.unshift({ date: new Date().toLocaleDateString('it-IT'), score: score.toFixed(1), correct, wrong, omitted });
+            saveState();
+            renderSimulationsHistory();
+        }
+
+        function renderSimulationsHistory() {
+            const hist = document.getElementById("simulationsHistory");
+            if (!hist) return;
+            
+            if (!appState.simulations || appState.simulations.length === 0) {
+                hist.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nessuna simulazione ancora registrata.</p>`;
+                return;
+            }
+
+            hist.innerHTML = appState.simulations.map(s => `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding: 0.5rem 0;">
+                    <div><b>Punteggio: ${s.score} pt</b> <span style="font-size: 0.8rem; color: var(--text-muted);">(${s.date})</span></div>
+                    <div style="font-size: 0.85rem;">🟢 ${s.correct} | 🔴 ${s.wrong} | ⚪ ${s.omitted}</div>
+                </div>
+            `).join('');
+        }
+
+        function switchTab(btnElement, tabId) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+            
+            const targetTab = document.getElementById(tabId);
+            if (targetTab) targetTab.classList.add("active");
+            
+            if (btnElement) {
+                btnElement.classList.add("active");
+            } else {
+                const buttons = document.querySelectorAll(".tab-btn");
+                buttons.forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabId)) {
+                        btn.classList.add("active");
+                    }
+                });
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `medstudio_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    appState = JSON.parse(e.target.result);
+                    saveState();
+                    location.reload();
+                } catch(err) { alert("File di backup non valido!"); }
+            };
+            fileReader.readAsText(event.target.files[0]);
+        }
+
+        function toggleTheme() {
+            appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
+            applyTheme();
+            saveState();
+        }
+
+        function applyTheme() {
+            document.documentElement.setAttribute('data-theme', appState.theme);
+            const themeBtn = document.getElementById("themeBtn");
+            if (themeBtn) {
+                themeBtn.innerHTML = appState.theme === 'dark' ? `<i class="fa-solid fa-sun"></i>` : `<i class="fa-solid fa-moon"></i>`;
+            }
+        }
+    </script>
+</body>
+</html>
