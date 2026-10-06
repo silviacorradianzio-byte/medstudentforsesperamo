@@ -19,7 +19,7 @@
             --border: #475569; --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
             --status-todo-bg: rgba(148, 163, 184, 0.1);
             --status-review-bg: rgba(245, 158, 11, 0.12);
-            --status-done-bg: rgba(34, 197, 94, 0.12);
+            --status-done-bg: rgba(34, 197, 94, 0.2);
         }
         :root[data-theme="light"] {
             --bg-primary: #f8fafc; --bg-secondary: #ffffff; --bg-card: #f1f5f9;
@@ -27,7 +27,7 @@
             --border: #cbd5e1; --success: #16a34a; --warning: #d97706; --danger: #dc2626;
             --status-todo-bg: #f1f5f9;
             --status-review-bg: #fffbeb;
-            --status-done-bg: #f0fdf4;
+            --status-done-bg: #dcfce7;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg-primary); color: var(--text-main); line-height: 1.5; padding-bottom: 70px; }
@@ -59,8 +59,8 @@
         
         .topic-item.status-todo { border-left: 4px solid var(--text-muted); }
         .topic-item.status-review { background-color: var(--status-review-bg); border-color: var(--warning); border-left: 5px solid var(--warning); }
-        .topic-item.status-done { background-color: var(--status-done-bg); border-color: var(--success); border-left: 5px solid var(--success); opacity: 0.85; }
-        .topic-item.status-done .topic-text { text-decoration: line-through; color: var(--text-muted); }
+        .topic-item.status-done { background-color: var(--status-done-bg); border-color: var(--success); border-left: 5px solid var(--success); }
+        .topic-item.status-done .topic-text { text-decoration: line-through; color: var(--success); font-weight: 600; }
         
         .topic-info { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; }
         .topic-meta { font-size: 0.75rem; color: var(--warning); font-weight: 600; display: flex; align-items: center; gap: 0.3rem; }
@@ -165,11 +165,10 @@
             <div id="syllabusContainer"></div>
         </div>
 
-        <!-- TAB EXTRA: QUADER NINO DEGLI ERRORI -->
+        <!-- TAB 2: QUADER NINO DEGLI ERRORI -->
         <div id="errorLogTab" class="tab-content">
             <div class="card">
                 <h3><i class="fa-solid fa-circle-plus"></i> Aggiungi un Errore al Quadernino</h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Registra i quiz errati svolti su Gemini o sui libri per ripassarli in seguito.</p>
                 <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
                     <div>
                         <label style="font-size: 0.8rem; color: var(--text-muted);">Materia e Argomento:</label>
@@ -192,7 +191,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: TIMER POMODORO -->
+        <!-- TAB 3: TIMER POMODORO -->
         <div id="timerTab" class="tab-content">
             <div class="card" style="max-width: 500px; margin: 0 auto;">
                 <h3 style="text-align: center;"><i class="fa-solid fa-brain"></i> Timer Pomodoro Focus</h3>
@@ -233,7 +232,7 @@
             </div>
         </div>
 
-        <!-- TAB 3: FLASHCARDS -->
+        <!-- TAB 4: FLASHCARDS -->
         <div id="flashcardsTab" class="tab-content">
             <div class="card" style="max-width: 650px; margin: 0 auto 1.5rem auto;">
                 <h3><i class="fa-solid fa-plus-circle"></i> Crea Nuova Flashcard</h3>
@@ -247,6 +246,15 @@
                     <button class="btn" onclick="addCustomFlashcard()"><i class="fa-solid fa-floppy-disk"></i> Salva Flashcard</button>
                 </div>
             </div>
+
+            <div class="card" style="max-width: 650px; margin: 0 auto 1.5rem auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleManageFlashcards()">
+                    <h4><i class="fa-solid fa-list"></i> Gestisci / Elimina Flashcard Create (<span id="fcCount">0</span>)</h4>
+                    <i class="fa-solid fa-chevron-down" id="fcManageIcon"></i>
+                </div>
+                <div id="customFcListContainer" style="display: none; margin-top: 1rem; max-height: 250px; overflow-y: auto;"></div>
+            </div>
+
             <div class="card" style="max-width: 650px; margin: 0 auto; text-align: center;">
                 <h3><i class="fa-solid fa-shuffle"></i> Flashcard Active Recall</h3>
                 <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
@@ -277,15 +285,15 @@
             </div>
         </div>
 
-        <!-- TAB 4: SIMULAZIONI & CALCOLO RISCHIO -->
+        <!-- TAB 5: SIMULAZIONI & CALCOLO RISCHIO -->
         <div id="simulationsTab" class="tab-content">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
                 <div class="card">
                     <h3><i class="fa-solid fa-plus"></i> Registra Simulazione</h3>
                     <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
-                        <div><label style="font-size: 0.8rem;">Corrette (+1.5):</label><input type="number" id="simCorrect" value="0" min="0" style="width: 100%;"></div>
-                        <div><label style="font-size: 0.8rem;">Errate (-0.4):</label><input type="number" id="simWrong" value="0" min="0" style="width: 100%;"></div>
-                        <div><label style="font-size: 0.8rem;">Omesse (0.0):</label><input type="number" id="simOmitted" value="0" min="0" style="width: 100%;"></div>
+                        <div><label style="font-size: 0.8rem;">Corrette (+1.0 pt):</label><input type="number" id="simCorrect" value="0" min="0" style="width: 100%;"></div>
+                        <div><label style="font-size: 0.8rem;">Errate (-0.1 pt):</label><input type="number" id="simWrong" value="0" min="0" style="width: 100%;"></div>
+                        <div><label style="font-size: 0.8rem;">Omesse (0.0 pt):</label><input type="number" id="simOmitted" value="0" min="0" style="width: 100%;"></div>
                         <button class="btn" style="width: 100%;" onclick="addSimulation()"><i class="fa-solid fa-floppy-disk"></i> Salva Risultato</button>
                     </div>
                 </div>
@@ -312,7 +320,7 @@
             </div>
         </div>
 
-        <!-- TAB 5: SCHEMI LAMPO -->
+        <!-- TAB 6: SCHEMI LAMPO -->
         <div id="notesTab" class="tab-content">
             <div class="card">
                 <h3><i class="fa-solid fa-bolt"></i> Ultra-Synthesizer: Crea Mappa Concettuale Rapida</h3>
@@ -504,7 +512,7 @@
                         { id: "chem_5_2", text: "Stereochimica: diastereoisomeri, enantiomeri, epimeri, miscele racemiche e convenzione Fischer/RS" },
                         { id: "chem_5_3", text: "Intermedi di reazione: rottura omolitica/eterolitica, carbocationi, carboanioni, nucleofili ed elettrofili" },
                         { id: "chem_5_4", text: "Alcani, cicloalcani ed alcheni: addizione elettrofila e dieni coniugati" },
-                        { id: "chem_5_5", text: "Composti aromatici: benzene, pirimidine, purine, regla di Hückel e tossicità" }
+                        { id: "chem_5_5", text: "Composti aromatici: benzene, pirimidine, purine, regola di Hückel e tossicità" }
                     ]
                 },
                 {
@@ -645,6 +653,7 @@
             populateNoteTopicSelector();
             populateErrorTopicSelector();
             renderErrorLog();
+            renderCustomFlashcardsList();
             updateDashboard();
             updateTimerDisplay();
             updateStudyHoursDisplay();
@@ -672,6 +681,7 @@
             if (!appState.todayCompletedTopicIds) appState.todayCompletedTopicIds = [];
             if (!appState.errorLog) appState.errorLog = [];
             if (!appState.quickNotes) appState.quickNotes = [];
+            if (!appState.customFlashcards) appState.customFlashcards = [];
         }
 
         function saveState() {
@@ -694,6 +704,7 @@
                     renderAgenda();
                     renderSyllabus();
                     renderErrorLog();
+                    renderCustomFlashcardsList();
                     updateDashboard();
                     updateTimerDisplay();
                     updateStudyHoursDisplay();
@@ -818,8 +829,8 @@
                         const td = appState.topicsData[id] || { text: 'Argomento', subject: 'Generale' };
                         const isDone = appState.todayCompletedTopicIds.includes(id);
                         return `
-                            <div style="display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-card); padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); ${isDone ? 'opacity: 0.6; text-decoration: line-through;' : ''}">
-                                <div><b>[${td.subject}]</b> ${td.text}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background-color: ${isDone ? 'var(--status-done-bg)' : 'var(--bg-card)'}; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid ${isDone ? 'var(--success)' : 'var(--border)'};">
+                                <div style="${isDone ? 'text-decoration: line-through; color: var(--success); font-weight: 600;' : ''}"><b>[${td.subject}]</b> ${td.text}</div>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <button class="btn btn-sm" style="background-color: var(--accent);" onclick="startTimerForTopic('${td.subject}')"><i class="fa-solid fa-play"></i> Pomodoro</button>
                                     <button class="btn btn-sm ${isDone ? 'btn-secondary' : ''}" style="${isDone ? '' : 'background-color: var(--success); color: white;'}" onclick="toggleTodayTaskDone('${id}')">
@@ -1077,7 +1088,7 @@
                         <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[${err.subject}] ${err.topicText}</span>
                         <div style="display: flex; gap: 0.5rem; align-items: center;">
                             <span style="font-size: 0.75rem; color: var(--text-muted);">${err.date}</span>
-                            <button class="btn btn-secondary btn-sm" onclick="removeErrorItem('${err.id}')"><i class="fa-solid fa-trash"></i></button>
+                            <button class="btn btn-secondary btn-sm" style="border-color: var(--danger); color: var(--danger);" onclick="removeErrorItem('${err.id}')"><i class="fa-solid fa-trash"></i> Elimina</button>
                         </div>
                     </div>
                     <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem;">❓ ${err.question}</div>
@@ -1171,6 +1182,43 @@
             if (modeSelect && container) {
                 container.style.display = (modeSelect.value === 'specific_topic') ? 'block' : 'none';
             }
+        }
+
+        function toggleManageFlashcards() {
+            const container = document.getElementById("customFcListContainer");
+            const icon = document.getElementById("fcManageIcon");
+            if (!container) return;
+            const isHidden = container.style.display === "none";
+            container.style.display = isHidden ? "block" : "none";
+            if (icon) icon.className = isHidden ? "fa-solid fa-chevron-up" : "fa-solid fa-chevron-down";
+        }
+
+        function renderCustomFlashcardsList() {
+            const container = document.getElementById("customFcListContainer");
+            const countElem = document.getElementById("fcCount");
+            if (!container) return;
+
+            const cards = appState.customFlashcards || [];
+            if (countElem) countElem.innerText = cards.length;
+
+            if (cards.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Nessuna flashcard personalizzata creata.</p>`;
+                return;
+            }
+
+            container.innerHTML = cards.map((c, idx) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 0.4rem; font-size: 0.85rem;">
+                    <div><b>[${c.subject}]</b> ${c.front}</div>
+                    <button class="btn btn-secondary btn-sm" style="border-color: var(--danger); color: var(--danger);" onclick="deleteCustomFlashcard(${idx})"><i class="fa-solid fa-trash"></i> Elimina</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteCustomFlashcard(index) {
+            if (!appState.customFlashcards) return;
+            appState.customFlashcards.splice(index, 1);
+            saveState();
+            renderCustomFlashcardsList();
         }
 
         function updateDashboard() {
@@ -1321,6 +1369,7 @@
 
             frontInp.value = "";
             backInp.value = "";
+            renderCustomFlashcardsList();
             alert("Flashcard aggiunta con successo!");
         }
 
@@ -1422,6 +1471,7 @@
 
             if (!appState.quickNotes) appState.quickNotes = [];
             appState.quickNotes.unshift({
+                id: 'note_' + Date.now(),
                 date: new Date().toLocaleDateString('it-IT'),
                 subject: td.subject,
                 topic: td.text,
@@ -1442,15 +1492,25 @@
                 return;
             }
 
-            container.innerHTML = appState.quickNotes.map((n, idx) => `
+            container.innerHTML = appState.quickNotes.map(n => `
                 <div style="background-color: var(--bg-card); padding: 0.85rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 0.75rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
                         <b style="color: var(--accent);">[${n.subject}] ${n.topic}</b>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">${n.date}</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">${n.date}</span>
+                            <button class="btn btn-secondary btn-sm" style="border-color: var(--danger); color: var(--danger);" onclick="deleteSavedNote('${n.id}')"><i class="fa-solid fa-trash"></i> Elimina</button>
+                        </div>
                     </div>
                     <div style="font-size: 0.85rem; line-height: 1.6;">${n.notes}</div>
                 </div>
             `).join('');
+        }
+
+        function deleteSavedNote(noteId) {
+            if (!appState.quickNotes) return;
+            appState.quickNotes = appState.quickNotes.filter(n => n.id !== noteId);
+            saveState();
+            renderSavedNotes();
         }
 
         function addSimulation() {
@@ -1462,7 +1522,7 @@
             const wrong = parseFloat(wrongInp ? wrongInp.value : 0) || 0;
             const omitted = parseFloat(omittedInp ? omittedInp.value : 0) || 0;
 
-            const score = (correct * 1.5) - (wrong * 0.4);
+            const score = (correct * 1.0) - (wrong * 0.1);
             appState.simulations.unshift({ date: new Date().toLocaleDateString('it-IT'), score: score.toFixed(1), correct, wrong, omitted });
             saveState();
             renderSimulationsHistory();
